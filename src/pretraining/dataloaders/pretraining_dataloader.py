@@ -1,7 +1,12 @@
 import torch
 import numpy as np
 from torch.utils.data import DataLoader, IterableDataset
-from src.utils.constants import INPUT_DIM, MAX_CONTEXT_LENGTH, DRY_RUN
+from src.utils.constants import (
+    INPUT_DIM,
+    MAX_CONTEXT_LENGTH,
+    DRY_RUN,
+    DRY_RUN_ITERATIONS,
+)
 from typing import Callable
 
 
@@ -13,24 +18,30 @@ class SyntheticDataset(IterableDataset):
     ):
         self.masking_function = masking_function
         self.n_masked_features = n_masked_features
+        self.split = split
         self.device = f"cuda:{rank}" if torch.cuda.is_available() else "cpu"
         self.seq_len = min(512, MAX_CONTEXT_LENGTH)
         self.input_dim = INPUT_DIM
 
+        # Set different random seed for different splits to ensure different data
+        self.split_seed = hash(split) % (2**31)
+
     def __iter__(self):
         """Generate infinite stream of synthetic samples"""
+        # Set numpy random state based on split to ensure different data for train/val
+        rng = np.random.RandomState(self.split_seed)
+
         while True:
             # Generate one sample of synthetic ICU vitals
             sample = torch.zeros(self.seq_len, self.input_dim)
 
             for feat_idx in range(self.input_dim):
                 # Simple realistic time series: baseline + trend + noise + periodic
-                baseline = 0.3 + 0.4 * np.random.random()
-                trend = np.random.normal(0, 0.01, self.seq_len)
-                noise = np.random.normal(0, 0.05, self.seq_len)
+                baseline = 0.3 + 0.4 * rng.random()
+                trend = rng.normal(0, 0.01, self.seq_len)
+                noise = rng.normal(0, 0.05, self.seq_len)
                 periodic = 0.1 * np.sin(
-                    np.linspace(0, 4 * np.pi, self.seq_len)
-                    + np.random.uniform(0, 2 * np.pi)
+                    np.linspace(0, 4 * np.pi, self.seq_len) + rng.uniform(0, 2 * np.pi)
                 )
 
                 values = baseline + np.cumsum(trend) + noise + periodic
@@ -69,8 +80,8 @@ class PretrainingDataloader(DataLoader):
         """Yield batches in format: (input_tensor, input_feature_mask, src_key_padding_mask)"""
         iteration_count = 0
         for batch in super().__iter__():
-            # Limit to 10 iterations in dry run mode
-            if DRY_RUN and iteration_count >= 10:
+            # Limit iterations in dry run mode
+            if DRY_RUN and iteration_count >= DRY_RUN_ITERATIONS:
                 break
 
             batch = batch.to(self.device)

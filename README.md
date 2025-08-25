@@ -345,7 +345,7 @@ BaseModel (abstract)
 1. **Start with mini model**: Use `--model-size mini` for fast iteration
 2. **Use dry run**: Keep `DRY_RUN=True` during development
 3. **Monitor logs**: Check `data/logs/` for training progress
-4. **Checkpoints**: Models automatically save to `data/models/`
+4. **Checkpoints**: Models automatically save to `data/trained_models/`
 
 ## License
 
