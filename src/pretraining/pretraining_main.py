@@ -1,6 +1,7 @@
 import argparse
 from src.pretraining.trainers.autoencoder_trainer import autoencoder_training_loop
 from src.pretraining.trainers.pulse_normal_trainer import pulse_normal_training_loop
+from src.pretraining.trainers.pulse_sinusoid_trainer import pulse_sinusoid_training_loop
 from src.utils.utils import setup_distributed, cleanup_distributed, setup_logging
 from src.utils.utils import parse_args, set_seed
 
@@ -20,13 +21,14 @@ DEFAULT_SCHEDULER_TYPE = "exponential"
 DEFAULT_TRAINING_TYPE = "pretraining"
 DEFAULT_EARLY_STOPPING_PATIENCE = 15
 DEFAULT_EARLY_STOPPING_MIN_DELTA = 1e-3
-# Default pulse_normal-specific parameters
-DEFAULT_ALPHA = 1.0
+# Default pulse_normal and pulse_sinusoid-specific parameters
+DEFAULT_ALPHA = 0.5
+DEFAULT_K_COMPONENTS = 1
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--model",
-    help="model type (autoencoder, pulse_normal)",
+    help="model type (autoencoder, pulse_normal, pulse_sinusoid)",
     default="autoencoder",
     type=str,
 )
@@ -113,9 +115,15 @@ parser.add_argument(
 )
 parser.add_argument(
     "--alpha",
-    help="alpha parameter for VAE loss weighting (pulse_normal only)",
+    help="alpha parameter for VAE loss weighting (pulse_normal and pulse_sinusoid only)",
     default=DEFAULT_ALPHA,
     type=float,
+)
+parser.add_argument(
+    "--k-components",
+    help="number of sinusoidal components for pulse_sinusoid model",
+    default=DEFAULT_K_COMPONENTS,
+    type=int,
 )
 
 
@@ -146,9 +154,11 @@ def main():
             autoencoder_training_loop(args_dict)
         elif model_type == "pulse_normal":
             pulse_normal_training_loop(args_dict)
+        elif model_type == "pulse_sinusoid":
+            pulse_sinusoid_training_loop(args_dict)
         else:
             raise ValueError(
-                f"Unknown model type: {model_type}. Supported types: 'autoencoder', 'pulse_normal'"
+                f"Unknown model type: {model_type}. Supported types: 'autoencoder', 'pulse_normal', 'pulse_sinusoid'"
             )
     finally:
         # Clean up distributed environment

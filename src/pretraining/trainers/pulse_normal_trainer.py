@@ -167,7 +167,7 @@ def pulse_normal_training_loop(args_dict):
         n_masked_features_increase_every_n_epochs=args_dict[
             "n_masked_features_increase_every_n_epochs"
         ],
-        alpha=args_dict.get("alpha", 1.0),  # VAE alpha parameter
+        alpha=args_dict["alpha"],
         batch_size=args_dict["batch_size"],
         num_epochs=args_dict["n_epochs"],
         init_lr=args_dict["init_lr"],
