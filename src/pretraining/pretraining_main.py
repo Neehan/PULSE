@@ -1,5 +1,6 @@
 import argparse
 from src.pretraining.trainers.autoencoder_trainer import autoencoder_training_loop
+from src.pretraining.trainers.pulse_normal_trainer import pulse_normal_training_loop
 from src.utils.utils import setup_distributed, cleanup_distributed, setup_logging
 from src.utils.utils import parse_args, set_seed
 
@@ -19,11 +20,13 @@ DEFAULT_SCHEDULER_TYPE = "exponential"
 DEFAULT_TRAINING_TYPE = "pretraining"
 DEFAULT_EARLY_STOPPING_PATIENCE = 15
 DEFAULT_EARLY_STOPPING_MIN_DELTA = 1e-3
+# Default pulse_normal-specific parameters
+DEFAULT_ALPHA = 1.0
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--model",
-    help="model type (currently only autoencoder is supported)",
+    help="model type (autoencoder, pulse_normal)",
     default="autoencoder",
     type=str,
 )
@@ -108,6 +111,12 @@ parser.add_argument(
     default=DEFAULT_SEED,
     type=int,
 )
+parser.add_argument(
+    "--alpha",
+    help="alpha parameter for VAE loss weighting (pulse_normal only)",
+    default=DEFAULT_ALPHA,
+    type=float,
+)
 
 
 def main():
@@ -135,9 +144,11 @@ def main():
 
         if model_type == "autoencoder":
             autoencoder_training_loop(args_dict)
+        elif model_type == "pulse_normal":
+            pulse_normal_training_loop(args_dict)
         else:
             raise ValueError(
-                f"Unknown model type: {model_type}. Currently only 'autoencoder' is supported"
+                f"Unknown model type: {model_type}. Supported types: 'autoencoder', 'pulse_normal'"
             )
     finally:
         # Clean up distributed environment

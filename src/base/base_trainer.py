@@ -219,7 +219,9 @@ class BaseTrainer(ABC):
         raise NotImplementedError("get_dataloaders must be implemented by children")
 
     @abstractmethod
-    def compute_train_loss(self, *input_data: torch.Tensor) -> Dict[str, torch.Tensor]:
+    def compute_train_loss(
+        self, *input_data: Optional[torch.Tensor]
+    ) -> Dict[str, torch.Tensor]:
         """
         Compute training loss for a batch - MUST BE IMPLEMENTED BY CHILDREN.
 
@@ -233,7 +235,7 @@ class BaseTrainer(ABC):
 
     @abstractmethod
     def compute_validation_loss(
-        self, *input_data: torch.Tensor
+        self, *input_data: Optional[torch.Tensor]
     ) -> Dict[str, torch.Tensor]:
         """
         Compute validation loss for a batch - MUST BE IMPLEMENTED BY CHILDREN.
@@ -269,7 +271,10 @@ class BaseTrainer(ABC):
 
         loader_len = 0
         for input_data in loader:
-            input_data = [input_i.to(self.device) for input_i in input_data]
+            input_data = [
+                input_i.to(self.device) if input_i is not None else None
+                for input_i in input_data
+            ]
             self.optimizer.zero_grad()
 
             loss_dict = self.compute_train_loss(*input_data)
@@ -301,7 +306,10 @@ class BaseTrainer(ABC):
 
         loader_len = 0
         for input_data in loader:
-            input_data = [input_i.to(self.device) for input_i in input_data]
+            input_data = [
+                input_i.to(self.device) if input_i is not None else None
+                for input_i in input_data
+            ]
 
             with torch.no_grad():
                 loss_dict = self.compute_validation_loss(*input_data)

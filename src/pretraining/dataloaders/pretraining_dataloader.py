@@ -90,10 +90,8 @@ class PretrainingDataloader(DataLoader):
                     batch_size, seq_len, input_dim, dtype=torch.bool, device=self.device
                 )
 
-            # Padding mask (all zeros since sequences are same length)
-            src_key_padding_mask = torch.zeros(
-                batch_size, seq_len, dtype=torch.bool, device=self.device
-            )
+            # No padding mask needed since all sequences are same length
+            src_key_padding_mask = None
 
             yield batch, input_feature_mask, src_key_padding_mask
             iteration_count += 1
