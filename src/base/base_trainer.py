@@ -401,7 +401,7 @@ class BaseTrainer(ABC):
         self.decay_factor = decay_factor
 
         # Create optimizer with current model parameters (which should be pretrained if provided)
-        self.optimizer = optim.Adam(self.model.parameters(), lr=init_lr)
+        self.optimizer = optim.AdamW(self.model.parameters(), lr=init_lr)
         if self.rank == 0:
             if decay_factor is None:
                 self.logger.info("using cosine annealing")
