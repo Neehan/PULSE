@@ -92,7 +92,9 @@ class PULSESinusoid(PULSENormal):
 
         # Compute sinusoidal prior: p(z) ~ N(A * sin(theta * pos + phase), sigma^2_p)
         # Parameters are already shaped as (1, k, max_len, input_dim)
-        amplitude = self.amplitude[:, :, :seq_len, :]  # (1, k, seq_len, input_dim)
+        amplitude = self.amplitude[:, :, :seq_len, :].expand(
+            batch_size, -1, -1, -1
+        )  # (1, k, seq_len, input_dim)
         phase = self.phase[:, :, :seq_len, :]  # (1, k, seq_len, input_dim)
         frequency = self.frequency[:, :, :seq_len, :]  # (1, k, seq_len, input_dim)
 

@@ -1,27 +1,23 @@
 # PULSE - Probabilistic Unsupervised Latent Sequence Encoder
 
-PULSE is a deep learning framework for pretraining autoencoder models on time series data, specifically designed for ICU vitals prediction tasks.
+PULSE is a deep learning framework for pretraining transformer-based models on time series data, specifically designed for ICU vitals prediction tasks. PULSE models use variational autoencoders with probabilistic outputs, while the autoencoder serves as a baseline for comparison.
 
-## Setup
+## Quick Start
 
-### 1. Create Conda Environment
+### 1. Installation
 
-First, create a new conda environment with Python:
+Create a conda environment and install dependencies:
 
 ```bash
+# Create environment
 conda create -n pulse python=3.11
 conda activate pulse
-```
 
-### 2. Install Dependencies
-
-Install the required packages:
-
-```bash
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 3. Environment Configuration
+### 2. Environment Setup
 
 Create a `.env` file in the project root:
 
@@ -30,40 +26,262 @@ DRY_RUN=True
 DATA_DIR=data/
 ```
 
-## Usage
+- `DRY_RUN=True`: Limits training to 10 iterations for quick testing
+- `DRY_RUN=False`: Full training mode
+- `DATA_DIR`: Directory for model outputs and data
 
-### Pretraining
+### 3. Run Pretraining
 
-Run pretraining with default parameters:
+Train a PULSE model with default settings:
 
 ```bash
-python -m src.pretraining.pretraining_main
+# PULSE Normal model (default)
+python -m src.pretraining.pretraining_main --model pulse_normal
+
+# PULSE Sinusoid model (with sinusoidal priors)
+python -m src.pretraining.pretraining_main --model pulse_sinusoid
+
+# Autoencoder baseline
+python -m src.pretraining.pretraining_main --model autoencoder
 ```
+
+## Model Architecture
+
+### PULSE Models (Main Framework)
+
+PULSE models are variational autoencoders that output probabilistic predictions:
+
+- **PULSE Normal**: Outputs Gaussian distributions (μ, σ²) for each predicted value
+- **PULSE Sinusoid**: Extends PULSE Normal with learnable sinusoidal priors for capturing periodic patterns in ICU vitals
+
+### Autoencoder (Baseline)
+
+The autoencoder provides deterministic point predictions and serves as a baseline for comparison with PULSE models.
+
+## Training Configuration
 
 ### Model Sizes
 
-Available model sizes:
-- `mini` (59k parameters) - Fast training, good for testing
-- `small` (1.8M parameters) - Default size
-- `medium` (13M parameters) - Larger model
-- `large` (56M parameters) - Largest model
-
-Example with mini model:
+Choose from different model sizes based on your computational resources:
 
 ```bash
-PYTHONPATH=. python -m src.pretraining.pretraining_main --model-size mini
+# Mini model (59k params) - Fast training, good for testing
+python -m src.pretraining.pretraining_main --model pulse_normal --model-size mini
+
+# Small model (1.8M params) - Default, good balance
+python -m src.pretraining.pretraining_main --model pulse_normal --model-size small
+
+# Medium model (13M params) - More capacity
+python -m src.pretraining.pretraining_main --model pulse_normal --model-size medium
+
+# Large model (56M params) - Maximum capacity
+python -m src.pretraining.pretraining_main --model pulse_normal --model-size large
 ```
 
 ### Training Parameters
 
-Key training parameters you can adjust:
+Customize training with these key parameters:
 
 ```bash
-PYTHONPATH=. python -m src.pretraining.pretraining_main \
-    --model-size mini \
+python -m src.pretraining.pretraining_main \
+    --model pulse_normal \
+    --model-size small \
     --batch-size 256 \
-    --n-epochs 50 \
+    --n-epochs 100 \
     --init-lr 0.0005 \
+    --alpha 0.5 \
+    --k-components 1
+```
+
+Key parameters:
+- `--alpha`: VAE loss weighting (PULSE models only)
+- `--k-components`: Number of sinusoidal components (PULSE Sinusoid only)
+- `--initial-n-masked-features`: Starting number of masked features (progressive masking)
+- `--max-n-masked-features`: Maximum number of masked features
+
+## Data
+
+### Current Setup: Synthetic ICU Vitals
+
+The framework currently uses synthetic ICU vitals data generated on-the-fly:
+
+- **32 features** representing different vital signs
+- **Realistic patterns**: baseline + trend + noise + periodic components
+- **Sequence length**: Up to 512 timesteps
+- **Progressive masking**: Gradually increases complexity during training
+
+The synthetic data simulates realistic ICU vital patterns with:
+- Baseline values with random variation
+- Trend components for gradual changes
+- Noise for realistic measurement variation
+- Periodic patterns for circadian rhythms
+
+## How to Add a New Model
+
+### 1. Create Model Class
+
+Create a new model file in `src/models/`:
+
+```python
+# src/models/your_new_model.py
+import torch
+import torch.nn as nn
+from src.base.base_model import BaseModel
+from src.utils.constants import MAX_CONTEXT_LENGTH
+
+class YourNewModel(BaseModel):
+    def __init__(self, input_dim: int, output_dim: int, device: str, ...):
+        super().__init__(name="your_new_model")
+        # Define your architecture here
+        
+    def load_pretrained(self, pretrained_model: "YourNewModel"):
+        # Implement pretrained model loading
+        pass
+        
+    def forward(self, input_tensor, input_feature_mask, src_key_padding_mask=None):
+        # Implement forward pass
+        pass
+```
+
+### 2. Create Trainer Class
+
+Create a trainer in `src/pretraining/trainers/`:
+
+```python
+# src/pretraining/trainers/your_new_model_trainer.py
+from src.base.base_trainer import BaseTrainer
+from src.models.your_new_model import YourNewModel
+
+class YourNewModelTrainer(BaseTrainer):
+    def get_dataloaders(self):
+        # Return train and validation dataloaders
+        pass
+        
+    def compute_train_loss(self, input_tensor, input_feature_mask, src_key_padding_mask):
+        # Implement training loss computation
+        pass
+        
+    def compute_validation_loss(self, input_tensor, input_feature_mask, src_key_padding_mask):
+        # Implement validation loss computation
+        pass
+
+def your_new_model_training_loop(args_dict):
+    # Initialize model and trainer
+    # Return trainer.train()
+    pass
+```
+
+### 3. Register in Main Script
+
+Add your model to `src/pretraining/pretraining_main.py`:
+
+```python
+# Add import
+from src.pretraining.trainers.your_new_model_trainer import your_new_model_training_loop
+
+# Add to argument parser help text
+parser.add_argument(
+    "--model",
+    help="model type (autoencoder, pulse_normal, pulse_sinusoid, your_new_model)",
+    # ...
+)
+
+# Add to main() function
+elif model_type == "your_new_model":
+    your_new_model_training_loop(args_dict)
+```
+
+## How to Add a New Dataloader
+
+### 1. Create Dataset Class
+
+Create a new dataset in `src/pretraining/dataloaders/`:
+
+```python
+# src/pretraining/dataloaders/your_dataloader.py
+import torch
+from torch.utils.data import Dataset, IterableDataset
+
+class YourDataset(Dataset):  # or IterableDataset for streaming
+    def __init__(self, split: str, ...):
+        # Initialize your dataset
+        pass
+        
+    def __len__(self):
+        # Return dataset size (for Dataset, not IterableDataset)
+        pass
+        
+    def __getitem__(self, idx):
+        # Return single sample: torch.Tensor of shape (seq_len, input_dim)
+        pass
+```
+
+### 2. Create DataLoader Wrapper
+
+```python
+class YourDataLoader(DataLoader):
+    def __init__(self, batch_size: int, split: str, ...):
+        dataset = YourDataset(split, ...)
+        super().__init__(dataset=dataset, batch_size=batch_size, ...)
+        
+    def __iter__(self):
+        for batch in super().__iter__():
+            # Apply any preprocessing/masking
+            # Yield: (input_tensor, input_feature_mask, src_key_padding_mask)
+            yield batch, input_feature_mask, src_key_padding_mask
+```
+
+### 3. Update Trainer
+
+Modify your trainer's `get_dataloaders()` method:
+
+```python
+def get_dataloaders(self):
+    train_loader = YourDataLoader(
+        batch_size=self.batch_size,
+        split="train",
+        # ... other parameters
+    )
+    val_loader = YourDataLoader(
+        batch_size=self.batch_size,
+        split="validation",
+        # ... other parameters
+    )
+    return train_loader, val_loader
+```
+
+## Advanced Usage
+
+### Distributed Training
+
+The framework supports multi-GPU training automatically:
+
+```bash
+# Single GPU
+python -m src.pretraining.pretraining_main --model pulse_normal
+
+# Multi-GPU (automatically detected)
+torchrun --nproc_per_node=4 -m src.pretraining.pretraining_main --model pulse_normal
+```
+
+### Resume Training
+
+Resume from a checkpoint:
+
+```bash
+python -m src.pretraining.pretraining_main \
+    --model pulse_normal \
+    --resume-from-checkpoint data/checkpoints/your_checkpoint.pth
+```
+
+### Load Pretrained Model
+
+Start training from a pretrained model:
+
+```bash
+python -m src.pretraining.pretraining_main \
+    --model pulse_normal \
+    --pretrained-model-path data/models/pretrained_model.pth
 ```
 
 ## Project Structure
@@ -71,47 +289,63 @@ PYTHONPATH=. python -m src.pretraining.pretraining_main \
 ```
 PULSE/
 ├── src/
-│   ├── base/                    # Base classes
-│   │   ├── base_model.py       # Base model class
-│   │   └── base_trainer.py     # Base trainer class
-│   ├── models/                 # Model implementations
-│   │   ├── autoencoder.py      # Autoencoder model
-│   │   ├── pulse_normal.py     # PULSE normal variant
-│   │   └── pulse_sinusoid.py   # PULSE sinusoidal variant
-│   ├── pretraining/            # Pretraining components
-│   │   ├── dataloaders/        # Data loading utilities
-│   │   ├── trainers/           # Training logic
-│   │   └── pretraining_main.py # Main pretraining script
-│   └── utils/                  # Utility functions
-│       ├── constants.py        # Configuration constants
-│       ├── pretraining_masks.py # Masking functions
-│       └── utils.py           # General utilities
-├── data/                       # Data directory
-├── requirements.txt           # Python dependencies
-└── README.md                 # This file
+│   ├── base/                           # Base classes
+│   │   ├── base_model.py              # BaseModel - inherit for new models
+│   │   └── base_trainer.py            # BaseTrainer - inherit for new trainers
+│   ├── models/                        # Model implementations
+│   │   ├── autoencoder.py             # Autoencoder baseline model
+│   │   ├── pulse_normal.py            # PULSE Normal (Gaussian VAE)
+│   │   ├── pulse_sinusoid.py          # PULSE Sinusoid (with sinusoidal priors)
+│   │   └── vanilla_pos_encoding.py    # Positional encoding utility
+│   ├── pretraining/                   # Pretraining components
+│   │   ├── dataloaders/               # Data loading utilities
+│   │   │   └── pretraining_dataloader.py  # Synthetic ICU vitals generator
+│   │   ├── trainers/                  # Training logic for each model
+│   │   │   ├── autoencoder_trainer.py     # Autoencoder training
+│   │   │   ├── pulse_normal_trainer.py    # PULSE Normal training
+│   │   │   └── pulse_sinusoid_trainer.py  # PULSE Sinusoid training
+│   │   └── pretraining_main.py        # Main training script
+│   └── utils/                         # Utility functions
+│       ├── constants.py               # Configuration constants
+│       ├── losses.py                  # Loss functions
+│       ├── pretraining_masks.py       # Masking strategies
+│       └── utils.py                   # General utilities
+├── data/                              # Output directory for models/logs
+├── requirements.txt                   # Python dependencies
+└── README.md                         # This guide
 ```
 
-## Features
+## Key Concepts
 
-- **Autoencoder Pretraining**: Masked time series prediction
-- **Multiple Model Sizes**: From mini (59k) to large (56M) parameters
-- **Flexible Training**: Configurable learning rates, schedulers, and early stopping
-- **Distributed Training Support**: Multi-GPU training capabilities
-- **Dry Run Mode**: Test without actual training for debugging
+### Progressive Masking
 
-## Environment Variables
+Training uses progressive masking where the number of masked features increases over time:
+- Starts with `--initial-n-masked-features` (default: 5)
+- Increases every `--n-masked-features-increase-every-n-epochs` (default: 5)
+- Caps at `--max-n-masked-features` (default: 24)
 
-- `DRY_RUN`: Set to `True` for testing without actual training
-- `DATA_DIR`: Directory for data and model outputs (default: `data/`)
+### ELBO Loss (PULSE Models)
 
-## Development
+PULSE models use Evidence Lower BOund (ELBO) loss combining:
+- **Reconstruction loss**: How well the model predicts masked values
+- **KL divergence**: Regularization term for the variational distribution
+- **Alpha weighting**: Balance between reconstruction and regularization (`--alpha`)
 
-The project follows a modular architecture:
+### Model Hierarchy
 
-1. **Base Classes**: `BaseModel` and `BaseTrainer` provide common functionality
-2. **Models**: Specific model implementations inherit from `BaseModel`
-3. **Trainers**: Training logic specific to each model type
-4. **Utils**: Shared utilities for data processing, masking, and configuration
+```
+BaseModel (abstract)
+├── Autoencoder (deterministic baseline)
+└── PULSENormal (probabilistic, Gaussian outputs)
+    └── PULSESinusoid (adds sinusoidal priors)
+```
+
+## Development Tips
+
+1. **Start with mini model**: Use `--model-size mini` for fast iteration
+2. **Use dry run**: Keep `DRY_RUN=True` during development
+3. **Monitor logs**: Check `data/logs/` for training progress
+4. **Checkpoints**: Models automatically save to `data/models/`
 
 ## License
 
