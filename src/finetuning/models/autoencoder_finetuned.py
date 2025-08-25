@@ -26,7 +26,6 @@ class AutoencoderFinetuned(Autoencoder):
         prediction_dim: int,  # Final prediction dimension (e.g., 1 for regression)
         attention_hidden_dim: int,  # Hidden dimension for attention MLP
         mlp_hidden_dim: int,  # Hidden dimension for the final MLP
-        dropout_rate: float,  # Dropout rate for regularization
         max_len: int = MAX_CONTEXT_LENGTH,
         name: str = "autoencoder_finetuned",
     ):

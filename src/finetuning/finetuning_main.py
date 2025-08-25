@@ -22,7 +22,6 @@ DEFAULT_EARLY_STOPPING_MIN_DELTA = 1e-4
 DEFAULT_PREDICTION_DIM = 1
 DEFAULT_ATTENTION_HIDDEN_DIM = 128
 DEFAULT_MLP_HIDDEN_DIM = 256
-DEFAULT_DROPOUT_RATE = 0.1
 DEFAULT_TASK_TYPE = "regression"
 
 parser = argparse.ArgumentParser()
@@ -117,12 +116,6 @@ parser.add_argument(
     default=DEFAULT_MLP_HIDDEN_DIM,
     type=int,
 )
-parser.add_argument(
-    "--dropout-rate",
-    help="dropout rate for regularization",
-    default=DEFAULT_DROPOUT_RATE,
-    type=float,
-)
 
 
 def main():
@@ -152,7 +145,6 @@ def main():
             "prediction_dim": args.prediction_dim,
             "attention_hidden_dim": args.attention_hidden_dim,
             "mlp_hidden_dim": args.mlp_hidden_dim,
-            "dropout_rate": args.dropout_rate,
             "rank": rank,
             "world_size": world_size,
             "local_rank": local_rank,

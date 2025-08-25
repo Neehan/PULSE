@@ -45,6 +45,29 @@ python -m src.pretraining.pretraining_main --model pulse_sinusoid
 python -m src.pretraining.pretraining_main --model autoencoder
 ```
 
+### 4. Run Fine-tuning 
+
+After pretraining, fine-tune for specific prediction tasks:
+
+```bash
+# Fine-tune for regression task
+python -m src.finetuning.finetuning_main \
+    --task-type regression \
+    --pretrained-model-path data/trained_models/pretrained_autoencoder.pth
+
+# Fine-tune for classification task  
+python -m src.finetuning.finetuning_main \
+    --task-type classification \
+    --prediction-dim 3 \
+    --pretrained-model-path data/trained_models/pretrained_autoencoder.pth
+```
+
+## Training
+
+PULSE has two training modes:
+- **Pretraining**: Learn representations from time series data
+- **Fine-tuning**: Add prediction head for specific tasks
+
 ## Model Architecture
 
 ### PULSE Models (Main Framework)
@@ -58,63 +81,21 @@ PULSE models are variational autoencoders that output probabilistic predictions:
 
 The autoencoder provides deterministic point predictions and serves as a baseline for comparison with PULSE models.
 
-## Training Configuration
+## Configuration
 
 ### Model Sizes
-
-Choose from different model sizes based on your computational resources:
+- `mini` (59k params) - Fast training
+- `small` (1.8M params) - Default 
+- `medium` (13M params) - More capacity
+- `large` (56M params) - Maximum capacity
 
 ```bash
-# Mini model (59k params) - Fast training, good for testing
-python -m src.pretraining.pretraining_main --model pulse_normal --model-size mini
-
-# Small model (1.8M params) - Default, good balance
-python -m src.pretraining.pretraining_main --model pulse_normal --model-size small
-
-# Medium model (13M params) - More capacity
-python -m src.pretraining.pretraining_main --model pulse_normal --model-size medium
-
-# Large model (56M params) - Maximum capacity
 python -m src.pretraining.pretraining_main --model pulse_normal --model-size large
 ```
 
-### Training Parameters
-
-Customize training with these key parameters:
-
-```bash
-python -m src.pretraining.pretraining_main \
-    --model pulse_normal \
-    --model-size small \
-    --batch-size 256 \
-    --n-epochs 100 \
-    --init-lr 0.0005 \
-    --alpha 0.5 \
-    --k-components 1
-```
-
-Key parameters:
-- `--alpha`: VAE loss weighting (PULSE models only)
-- `--k-components`: Number of sinusoidal components (PULSE Sinusoid only)
-- `--initial-n-masked-features`: Starting number of masked features (progressive masking)
-- `--max-n-masked-features`: Maximum number of masked features
-
 ## Data
 
-### Current Setup: Synthetic ICU Vitals
-
-The framework currently uses synthetic ICU vitals data generated on-the-fly:
-
-- **32 features** representing different vital signs
-- **Realistic patterns**: baseline + trend + noise + periodic components
-- **Sequence length**: Up to 512 timesteps
-- **Progressive masking**: Gradually increases complexity during training
-
-The synthetic data simulates realistic ICU vital patterns with:
-- Baseline values with random variation
-- Trend components for gradual changes
-- Noise for realistic measurement variation
-- Periodic patterns for circadian rhythms
+Uses synthetic ICU vitals with 32 features and up to 512 timesteps.
 
 ## How to Add a New Model
 
@@ -264,24 +245,10 @@ python -m src.pretraining.pretraining_main --model pulse_normal
 torchrun --nproc_per_node=4 -m src.pretraining.pretraining_main --model pulse_normal
 ```
 
-### Resume Training
-
-Resume from a checkpoint:
+### Multi-GPU Training
 
 ```bash
-python -m src.pretraining.pretraining_main \
-    --model pulse_normal \
-    --resume-from-checkpoint data/checkpoints/your_checkpoint.pth
-```
-
-### Load Pretrained Model
-
-Start training from a pretrained model:
-
-```bash
-python -m src.pretraining.pretraining_main \
-    --model pulse_normal \
-    --pretrained-model-path data/models/pretrained_model.pth
+torchrun --nproc_per_node=4 -m src.pretraining.pretraining_main --model pulse_normal
 ```
 
 ## Project Structure
@@ -305,12 +272,22 @@ PULSE/
 │   │   │   ├── pulse_normal_trainer.py    # PULSE Normal training
 │   │   │   └── pulse_sinusoid_trainer.py  # PULSE Sinusoid training
 │   │   └── pretraining_main.py        # Main training script
+│   ├── finetuning/                    # Fine-tuning components
+│   │   ├── dataloaders/               # Fine-tuning data utilities
+│   │   │   └── finetuning_dataloader.py   # Synthetic regression/classification data
+│   │   ├── models/                    # Fine-tuned model implementations
+│   │   │   └── autoencoder_finetuned.py   # Autoencoder with predictor head
+│   │   ├── trainers/                  # Fine-tuning training logic
+│   │   │   └── autoencoder_finetuned_trainer.py  # Fine-tuning trainer
+│   │   └── finetuning_main.py         # Main fine-tuning script
 │   └── utils/                         # Utility functions
 │       ├── constants.py               # Configuration constants
 │       ├── losses.py                  # Loss functions
 │       ├── pretraining_masks.py       # Masking strategies
 │       └── utils.py                   # General utilities
 ├── data/                              # Output directory for models/logs
+├── datatrained_models/                # Pretrained model storage
+│   └── pretraining/                   # Pretraining checkpoints
 ├── requirements.txt                   # Python dependencies
 └── README.md                         # This guide
 ```
@@ -346,6 +323,23 @@ BaseModel (abstract)
 2. **Use dry run**: Keep `DRY_RUN=True` during development
 3. **Monitor logs**: Check `data/logs/` for training progress
 4. **Checkpoints**: Models automatically save to `data/trained_models/`
+
+## Fine-tuning
+
+Fine-tune pretrained models for prediction tasks:
+
+```bash
+# Regression
+python -m src.finetuning.finetuning_main \
+    --task-type regression \
+    --pretrained-model-path data/trained_models/pretrained_autoencoder.pth
+
+# Classification  
+python -m src.finetuning.finetuning_main \
+    --task-type classification \
+    --prediction-dim 3 \
+    --pretrained-model-path data/trained_models/pretrained_autoencoder.pth
+```
 
 ## License
 

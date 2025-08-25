@@ -138,7 +138,6 @@ def autoencoder_finetuned_training_loop(args_dict):
         prediction_dim=args_dict["prediction_dim"],
         attention_hidden_dim=args_dict["attention_hidden_dim"],
         mlp_hidden_dim=args_dict["mlp_hidden_dim"],
-        dropout_rate=args_dict["dropout_rate"],
         **args_dict["model_size_params"],
     ).to(device)
 
