@@ -1,0 +1,7 @@
+transformers
+datasets
+huggingface_hub
+torch-lr-finder
+python-dotenv
+pandas
+tqdm
