@@ -2,6 +2,9 @@ import argparse
 from src.finetuning.trainers.autoencoder_finetuned_trainer import (
     autoencoder_finetuned_training_loop,
 )
+from src.finetuning.trainers.pulse_normal_finetuned_trainer import (
+    pulse_normal_finetuned_training_loop,
+)
 from src.utils.utils import setup_distributed, cleanup_distributed, setup_logging
 from src.utils.utils import parse_args, set_seed
 
@@ -23,11 +26,12 @@ DEFAULT_PREDICTION_DIM = 1
 DEFAULT_ATTENTION_HIDDEN_DIM = 128
 DEFAULT_MLP_HIDDEN_DIM = 256
 DEFAULT_TASK_TYPE = "regression"
+DEFAULT_BETA = 0.5
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--model",
-    help="model type (currently only autoencoder_finetuned supported)",
+    help="model type (autoencoder_finetuned or pulse_normal_finetuned)",
     default="autoencoder_finetuned",
     type=str,
 )
@@ -116,6 +120,12 @@ parser.add_argument(
     default=DEFAULT_MLP_HIDDEN_DIM,
     type=int,
 )
+parser.add_argument(
+    "--beta",
+    help="beta parameter for KL weighting (only for pulse_normal_finetuned)",
+    default=DEFAULT_BETA,
+    type=float,
+)
 
 
 def main():
@@ -125,8 +135,10 @@ def main():
     if args.task_type not in ["regression", "classification"]:
         raise ValueError("task_type must be 'regression' or 'classification'")
 
-    if args.model not in ["autoencoder_finetuned"]:
-        raise ValueError("Currently only 'autoencoder_finetuned' model is supported")
+    if args.model not in ["autoencoder_finetuned", "pulse_normal_finetuned"]:
+        raise ValueError(
+            "Supported models: 'autoencoder_finetuned', 'pulse_normal_finetuned'"
+        )
 
     # Setup distributed training
     rank, world_size, local_rank = setup_distributed()
@@ -145,6 +157,7 @@ def main():
             "prediction_dim": args.prediction_dim,
             "attention_hidden_dim": args.attention_hidden_dim,
             "mlp_hidden_dim": args.mlp_hidden_dim,
+            "beta": args.beta,
             "rank": rank,
             "world_size": world_size,
             "local_rank": local_rank,
@@ -156,6 +169,8 @@ def main():
     try:
         if model_type == "autoencoder_finetuned":
             best_val_loss = autoencoder_finetuned_training_loop(args_dict)
+        elif model_type == "pulse_normal_finetuned":
+            best_val_loss = pulse_normal_finetuned_training_loop(args_dict)
         else:
             raise ValueError(f"Unsupported model type: {model_type}")
 

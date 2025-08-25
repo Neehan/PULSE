@@ -74,12 +74,30 @@ class AutoencoderFinetuned(Autoencoder):
             )
 
         # Load pretrained encoder components
-        self.in_proj = copy.deepcopy(pretrained_model.in_proj)
-        self.positional_encoding = copy.deepcopy(pretrained_model.positional_encoding)
-        self.transformer_encoder = copy.deepcopy(pretrained_model.transformer_encoder)
+        super().load_pretrained(pretrained_model)
 
-        # Note: We don't load the out_proj from pretrained model since we have our own prediction head
-        # The pretrained out_proj was for reconstruction, our prediction head is for classification/regression
+    def _predict_forward(self, features: torch.Tensor) -> torch.Tensor:
+        """
+        Helper method to make predictions from features using attention and MLP head.
+
+        Args:
+            features: batch_size x seq_len x feature_dim
+
+        Returns:
+            predictions: batch_size x prediction_dim
+        """
+        # Use simple MLP attention to aggregate across timesteps
+        attention_scores = self.attention_mlp(features)  # batch_size x seq_len x 1
+        attention_weights = F.softmax(
+            attention_scores, dim=1
+        )  # batch_size x seq_len x 1
+        compressed_representation = (features * attention_weights).sum(
+            dim=1
+        )  # batch_size x feature_dim
+        predictions = self.prediction_head(
+            compressed_representation
+        )  # batch_size x prediction_dim
+        return predictions
 
     def forward(
         self,
@@ -101,20 +119,6 @@ class AutoencoderFinetuned(Autoencoder):
         encoder_output = super().forward(
             input_tensor, input_feature_mask, src_key_padding_mask
         )
-        # encoder_output: batch_size x seq_len x hidden_dim
+        # encoder_output: batch_size x seq_len x input_dim
 
-        # Use simple MLP attention to aggregate across timesteps
-        attention_scores = self.attention_mlp(
-            encoder_output
-        )  # batch_size x seq_len x 1
-        attention_weights = F.softmax(
-            attention_scores, dim=1
-        )  # batch_size x seq_len x 1
-        compressed_representation = (encoder_output * attention_weights).sum(
-            dim=1
-        )  # batch_size x hidden_dim
-        predictions = self.prediction_head(
-            compressed_representation
-        )  # batch_size x prediction_dim
-
-        return predictions
+        return self._predict_forward(encoder_output)
