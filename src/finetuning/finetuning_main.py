@@ -7,6 +7,7 @@ from src.finetuning.trainers.pulse_normal_finetuned_trainer import (
 )
 from src.utils.utils import setup_distributed, cleanup_distributed, setup_logging
 from src.utils.utils import parse_args, set_seed
+from src.utils.enums import SchedulerType
 
 # Default fine-tuning parameters
 DEFAULT_BATCH_SIZE = 64  # Smaller batch size for fine-tuning
@@ -16,7 +17,7 @@ DEFAULT_N_WARMUP_EPOCHS = 5
 DEFAULT_DECAY_FACTOR = 0.95
 DEFAULT_MODEL_SIZE = "small"
 DEFAULT_SEED = 1234
-DEFAULT_SCHEDULER_TYPE = "cosine"
+DEFAULT_SCHEDULER_TYPE = SchedulerType.COSINE.value
 DEFAULT_TRAINING_TYPE = "finetuning"
 DEFAULT_EARLY_STOPPING_PATIENCE = 10
 DEFAULT_EARLY_STOPPING_MIN_DELTA = 1e-4
@@ -77,7 +78,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "--scheduler-type",
-    help="scheduler type (cosine or exponential)",
+    help="scheduler type (cosine, exponential, or linear_flat)",
     default=DEFAULT_SCHEDULER_TYPE,
     type=str,
 )

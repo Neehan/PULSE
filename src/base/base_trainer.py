@@ -23,10 +23,10 @@ class BaseTrainer(ABC):
         batch_size: Batch size
         num_epochs: Number of epochs to train
         init_lr: Initial learning rate
-        scheduler_type: Type of scheduler to use (cosine or exponential)
+        scheduler_type: Type of scheduler to use (cosine, exponential, or linear_flat)
         training_type: Type of training to be done (e.g. "pretraining", "finetuning")
         num_warmup_epochs: Number of epochs for linear warmup
-        decay_factor: Decay factor for exponential scheduler. Not used if scheduler_type is "cosine".
+        decay_factor: Decay factor for exponential scheduler. Not used if scheduler_type is "cosine" or "linear_flat".
         pretrained_model_path: Path to pretrained model
         resume_from_checkpoint: Path to checkpoint to resume from
         For distributed training:
@@ -402,13 +402,6 @@ class BaseTrainer(ABC):
 
         # Create optimizer with current model parameters (which should be pretrained if provided)
         self.optimizer = optim.AdamW(self.model.parameters(), lr=init_lr)
-        if self.rank == 0:
-            if decay_factor is None:
-                self.logger.info("using cosine annealing")
-            else:
-                self.logger.info(
-                    f"using exponential annealing with decay factor {decay_factor}"
-                )
 
         self.scheduler = utils.get_scheduler(
             self.optimizer,

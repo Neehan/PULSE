@@ -8,6 +8,7 @@ from argparse import ArgumentParser
 import math
 import random
 import numpy as np
+from .enums import SchedulerType
 
 
 # --------------------------------------------
@@ -23,30 +24,36 @@ def get_scheduler(
     scheduler_type: str,
 ):
     """
-    Create a learning rate scheduler with warmup followed by cosine or exponential annealing.
+    Create a learning rate scheduler with warmup followed by cosine, exponential, or linear_flat annealing.
 
     Args:
         optimizer: PyTorch optimizer
         num_warmup_epochs: Number of epochs for linear warmup
         total_epochs: Total number of training epochs
-        decay_factor: Decay factor for exponential annealing. Not used if scheduler_type is "cosine".
-        scheduler_type: Type of scheduler to use, either "cosine" or "exponential"
+        decay_factor: Decay factor for exponential annealing. Not used if scheduler_type is "cosine" or "linear_flat".
+        scheduler_type: Type of scheduler to use, either "cosine", "exponential", or "linear_flat"
     Returns:
         PyTorch LR scheduler
     """
 
-    if scheduler_type == "cosine":
+    if scheduler_type == SchedulerType.COSINE.value:
         # Use cosine annealing
         lr_lambda = _cosine_annealing_lr(num_warmup_epochs, total_epochs)
-    elif scheduler_type == "exponential":
+    elif scheduler_type == SchedulerType.EXPONENTIAL.value:
         if decay_factor is None:
             raise ValueError("Decay factor is required for exponential scheduler")
         # Use exponential annealing
         lr_lambda = _exponential_annealing_lr(
             num_warmup_epochs, total_epochs, decay_factor
         )
+    elif scheduler_type == SchedulerType.LINEAR_FLAT.value:
+        # Use linear warmup then flat
+        lr_lambda = _linear_flat_lr(num_warmup_epochs)
     else:
-        raise ValueError(f"Unknown scheduler type: {scheduler_type}")
+        valid_types = SchedulerType.get_all_values()
+        raise ValueError(
+            f"Unknown scheduler type: {scheduler_type}. Valid types: {valid_types}"
+        )
 
     return optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
 
@@ -160,5 +167,17 @@ def _exponential_annealing_lr(num_warmup_epochs, total_epochs, decay_factor):
             # Exponential annealing after warmup
             epochs_after_warmup = current_epoch - num_warmup_epochs
             return decay_factor**epochs_after_warmup
+
+    return lr_function
+
+
+def _linear_flat_lr(num_warmup_epochs):
+    def lr_function(current_epoch):
+        if current_epoch < num_warmup_epochs:
+            # Linear warmup
+            return float(current_epoch) / float(max(1, num_warmup_epochs))
+        else:
+            # Flat learning rate after warmup
+            return 1.0
 
     return lr_function

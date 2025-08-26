@@ -4,6 +4,7 @@ from src.pretraining.trainers.pulse_normal_trainer import pulse_normal_training_
 from src.pretraining.trainers.pulse_sinusoid_trainer import pulse_sinusoid_training_loop
 from src.utils.utils import setup_distributed, cleanup_distributed, setup_logging
 from src.utils.utils import parse_args, set_seed
+from src.utils.enums import SchedulerType
 
 # Default training parameters - all magic numbers defined here
 DEFAULT_BATCH_SIZE = 256
@@ -17,7 +18,7 @@ DEFAULT_SEED = 1234
 DEFAULT_INITIAL_N_MASKED_FEATURES = 5
 DEFAULT_MAX_N_MASKED_FEATURES = 24
 DEFAULT_N_MASKED_FEATURES_INCREASE_EVERY_N_EPOCHS = 5
-DEFAULT_SCHEDULER_TYPE = "exponential"
+DEFAULT_SCHEDULER_TYPE = SchedulerType.EXPONENTIAL.value
 DEFAULT_TRAINING_TYPE = "pretraining"
 DEFAULT_EARLY_STOPPING_PATIENCE = 15
 DEFAULT_EARLY_STOPPING_MIN_DELTA = 1e-3
@@ -91,7 +92,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "--scheduler-type",
-    help="type of learning rate scheduler (cosine or exponential)",
+    help="type of learning rate scheduler (cosine, exponential, or linear_flat)",
     default=DEFAULT_SCHEDULER_TYPE,
     type=str,
 )
